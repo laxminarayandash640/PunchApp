@@ -1,34 +1,36 @@
 @echo off
 set GIT_CMD="C:\Users\laxmi\AppData\Local\Programs\Git\cmd\git.exe"
+set REPO_URL=https://github.com/laxminarayandash640/PunchApp.git
 
-if "%~1"=="" (
-    echo =======================================================
-    echo Push to GitHub Helper
-    echo =======================================================
-    echo Please provide your GitHub repository URL:
-    echo Syntax:  push.bat ^<github-repo-url^>
-    echo.
-    echo Example: push.bat https://github.com/laxminarayandash20-bit/employee-attendance.git
-    echo =======================================================
-    exit /b 1
+if not "%~1"=="" (
+    set REPO_URL=%1
 )
 
-echo Adding remote origin: %1
+echo =======================================================
+echo Pushing Employee Attendance Web App to GitHub:
+echo %REPO_URL%
+echo =======================================================
+echo.
+
 %GIT_CMD% remote remove origin 2>nul
-%GIT_CMD% remote add origin %1
+%GIT_CMD% remote add origin %REPO_URL%
 %GIT_CMD% branch -M main
 
-echo Pushing main branch to GitHub...
+echo Uploading to GitHub...
 %GIT_CMD% push -u origin main
 
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo =======================================================
-    echo SUCCESS: Project pushed to GitHub successfully!
+    echo SUCCESS: Project successfully pushed to:
+    echo %REPO_URL%
     echo =======================================================
 ) else (
     echo.
     echo =======================================================
-    echo ERROR: Push failed. Check your GitHub repository URL and permissions.
+    echo ERROR: Push failed. If prompted, please complete
+    echo the GitHub login dialog in your browser.
     echo =======================================================
 )
+
+pause
