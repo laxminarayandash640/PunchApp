@@ -79,8 +79,8 @@ export async function GET() {
         {
           settings: {
             company_name: "",
-            work_start_time: "09:00",
-            work_end_time: "18:00",
+            work_start_time: "00:05",
+            work_end_time: "23:59",
             work_hours_per_day: 8,
             timezone: "Asia/Kolkata",
             weekend_days: ["Saturday", "Sunday"],

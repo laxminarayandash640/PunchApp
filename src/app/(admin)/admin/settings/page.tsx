@@ -17,8 +17,8 @@ export default function AdminSettingsPage() {
 
   // Form fields
   const [companyName, setCompanyName] = useState('AttendTrack Technologies');
-  const [workStartTime, setWorkStartTime] = useState('09:00:00');
-  const [workEndTime, setWorkEndTime] = useState('18:00:00');
+  const [workStartTime, setWorkStartTime] = useState('00:05:00');
+  const [workEndTime, setWorkEndTime] = useState('23:59:00');
   const [expectedHours, setExpectedHours] = useState(8);
   const [gracePeriod, setGracePeriod] = useState(15);
   const [timezone, setTimezone] = useState('Asia/Kolkata');
@@ -35,8 +35,8 @@ export default function AdminSettingsPage() {
             const s: CompanySettings = json.settings;
             setSettings(s);
             setCompanyName(s.company_name || 'AttendTrack Technologies');
-            setWorkStartTime(s.work_start_time || '09:00:00');
-            setWorkEndTime(s.work_end_time || '18:00:00');
+            setWorkStartTime(s.work_start_time || '00:05:00');
+            setWorkEndTime(s.work_end_time || '23:59:00');
             setExpectedHours(s.expected_working_hours || 8);
             setGracePeriod(s.grace_period_minutes || 15);
             setTimezone(s.timezone || 'Asia/Kolkata');

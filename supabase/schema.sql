@@ -93,8 +93,8 @@ COMMENT ON TABLE public.leave_requests IS 'Employee leave applications and their
 CREATE TABLE IF NOT EXISTS public.company_settings (
   id                       uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   company_name             text        NOT NULL DEFAULT 'My Company',
-  work_start_time          time        NOT NULL DEFAULT '09:00:00',
-  work_end_time            time        NOT NULL DEFAULT '18:00:00',
+  work_start_time          time        NOT NULL DEFAULT '00:05:00',
+  work_end_time            time        NOT NULL DEFAULT '23:59:00',
   expected_working_hours   numeric(4,2) NOT NULL DEFAULT 8.0,
   grace_period_minutes     integer     NOT NULL DEFAULT 15,
   timezone                 text        NOT NULL DEFAULT 'Asia/Kolkata',
@@ -310,8 +310,8 @@ INSERT INTO public.company_settings (
 )
 SELECT
   'My Company',
-  '09:00:00'::time,
-  '18:00:00'::time,
+  '00:05:00'::time,
+  '23:59:00'::time,
   8.0,
   15,
   'Asia/Kolkata',

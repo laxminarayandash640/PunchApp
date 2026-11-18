@@ -21,8 +21,8 @@ INSERT INTO public.company_settings (
 )
 SELECT
   'My Company',
-  '09:00:00'::time,
-  '18:00:00'::time,
+  '00:05:00'::time,
+  '23:59:00'::time,
   8.0,
   15,
   'Asia/Kolkata',
