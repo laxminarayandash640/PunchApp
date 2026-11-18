@@ -81,7 +81,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
         profiles:employee_id (
           id,
           full_name,
-          employee_code,
+          employee_id,
           department,
           designation
         ),
@@ -239,7 +239,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           .from("attendance")
           .select("id")
           .eq("employee_id", leaveRequest.employee_id)
-          .eq("date", date)
+          .eq("attendance_date", date)
           .maybeSingle();
 
         if (existing) {
@@ -252,7 +252,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           // Create a new attendance record with status 'leave'
           await serviceClient.from("attendance").insert({
             employee_id: leaveRequest.employee_id,
-            date,
+            attendance_date: date,
             status: "leave",
             total_working_seconds: 0,
             created_at: nowUTC,
@@ -266,9 +266,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     await serviceClient.from("audit_logs").insert({
       actor_id: user.id,
       action: `leave_${status}`,
-      entity: "leave_requests",
-      entity_id: id,
-      metadata: {
+      target_table: "leave_requests",
+      target_id: id,
+      details: {
         employee_id: leaveRequest.employee_id,
         start_date: leaveRequest.start_date,
         end_date: leaveRequest.end_date,

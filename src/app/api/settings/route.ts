@@ -239,9 +239,9 @@ export async function PATCH(request: NextRequest) {
     await serviceClient.from("audit_logs").insert({
       actor_id: user.id,
       action: "update_settings",
-      entity: "company_settings",
-      entity_id: upserted.id,
-      metadata: { changes: updates },
+      target_table: "company_settings",
+      target_id: upserted.id,
+      details: { changes: updates },
       created_at: nowUTC,
     });
 

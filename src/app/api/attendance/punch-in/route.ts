@@ -2,10 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function getISTDateString(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -47,9 +43,7 @@ function createSupabaseServiceClient() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // POST /api/attendance/punch-in
-// ---------------------------------------------------------------------------
 export async function POST() {
   try {
     // 1. Authenticate
@@ -70,20 +64,19 @@ export async function POST() {
     const todayIST = getISTDateString(); // "YYYY-MM-DD"
     const nowUTC = new Date().toISOString();
 
-    // 2. Check for an existing active session (punch_out IS NULL) today
+    // 2. Check for an existing active session (punch_out IS NULL)
     const { data: activeSessions, error: activeSessionError } =
       await serviceClient
         .from("attendance_sessions")
         .select("id")
         .eq("employee_id", user.id)
-        .eq("date", todayIST)
         .is("punch_out", null)
         .limit(1);
 
     if (activeSessionError) {
       console.error("[punch-in] active session check error:", activeSessionError);
       return NextResponse.json(
-        { error: "Failed to check active session." },
+        { error: `Failed to check active session: ${activeSessionError.message}` },
         { status: 500 }
       );
     }
@@ -95,27 +88,26 @@ export async function POST() {
       );
     }
 
-    // 3. Get or create attendance record for today
-    let attendance: Record<string, unknown> | null = null;
+    // 3. Get or create attendance record for today (column is attendance_date)
+    let attendance: any = null;
 
     const { data: existingAttendance, error: fetchAttendanceError } =
       await serviceClient
         .from("attendance")
         .select("*")
         .eq("employee_id", user.id)
-        .eq("date", todayIST)
+        .eq("attendance_date", todayIST)
         .maybeSingle();
 
     if (fetchAttendanceError) {
       console.error("[punch-in] fetch attendance error:", fetchAttendanceError);
       return NextResponse.json(
-        { error: "Failed to fetch attendance record." },
+        { error: `Failed to fetch attendance record: ${fetchAttendanceError.message}` },
         { status: 500 }
       );
     }
 
     if (existingAttendance) {
-      // Update status to present and touch updated_at
       const { data: updatedAttendance, error: updateAttendanceError } =
         await serviceClient
           .from("attendance")
@@ -133,13 +125,12 @@ export async function POST() {
       }
       attendance = updatedAttendance;
     } else {
-      // Create a fresh attendance record
       const { data: createdAttendance, error: createAttendanceError } =
         await serviceClient
           .from("attendance")
           .insert({
             employee_id: user.id,
-            date: todayIST,
+            attendance_date: todayIST,
             status: "present",
             total_working_seconds: 0,
             created_at: nowUTC,
@@ -151,7 +142,7 @@ export async function POST() {
       if (createAttendanceError) {
         console.error("[punch-in] create attendance error:", createAttendanceError);
         return NextResponse.json(
-          { error: "Failed to create attendance record." },
+          { error: `Failed to create attendance record: ${createAttendanceError.message}` },
           { status: 500 }
         );
       }
@@ -163,13 +154,11 @@ export async function POST() {
       .from("attendance_sessions")
       .insert({
         employee_id: user.id,
-        attendance_id: (attendance as { id: string }).id,
-        date: todayIST,
+        attendance_id: attendance.id,
         punch_in: nowUTC,
         punch_out: null,
         duration_seconds: null,
         created_at: nowUTC,
-        updated_at: nowUTC,
       })
       .select()
       .single();
@@ -177,7 +166,7 @@ export async function POST() {
     if (sessionError) {
       console.error("[punch-in] insert session error:", sessionError);
       return NextResponse.json(
-        { error: "Failed to create punch-in session." },
+        { error: `Failed to create punch-in session: ${sessionError.message}` },
         { status: 500 }
       );
     }
@@ -186,12 +175,12 @@ export async function POST() {
     await serviceClient.from("audit_logs").insert({
       actor_id: user.id,
       action: "punch_in",
-      entity: "attendance_sessions",
-      entity_id: session.id,
-      metadata: {
+      target_table: "attendance_sessions",
+      target_id: session.id,
+      details: {
         date: todayIST,
         punch_in: nowUTC,
-        attendance_id: (attendance as { id: string }).id,
+        attendance_id: attendance.id,
       },
       created_at: nowUTC,
     });
@@ -200,10 +189,10 @@ export async function POST() {
       { session, attendance },
       { status: 201 }
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error("[punch-in] unexpected error:", err);
     return NextResponse.json(
-      { error: "Internal server error." },
+      { error: err?.message || "Internal server error." },
       { status: 500 }
     );
   }

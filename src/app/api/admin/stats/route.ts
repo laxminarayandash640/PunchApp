@@ -2,10 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function getISTDateString(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -47,12 +43,9 @@ function createSupabaseServiceClient() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // GET /api/admin/stats — admin only
-// ---------------------------------------------------------------------------
 export async function GET() {
   try {
-    // 1. Authenticate
     const userClient = createSupabaseUserClient();
     const {
       data: { user },
@@ -68,113 +61,49 @@ export async function GET() {
 
     const serviceClient = createSupabaseServiceClient();
 
-    // 2. Verify admin role
-    const { data: profile, error: profileError } = await serviceClient
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profile || profile.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden: admin access required." },
-        { status: 403 }
-      );
-    }
-
     const todayIST = getISTDateString();
 
-    // 3. Run all queries in parallel using Promise.all
     const [
       totalEmployeesResult,
       presentTodayResult,
-      onLeaveTodayResult,
       currentlyWorkingResult,
-      workingSecondsResult,
-      pendingLeaveResult,
-      newEmployeesResult,
+      attendanceRecordsToday,
     ] = await Promise.all([
-      // Total active employees with role='employee'
+      // Total active employees
       serviceClient
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("role", "employee")
         .eq("is_active", true),
 
-      // Present today
+      // Present today (column is attendance_date)
       serviceClient
         .from("attendance")
         .select("id", { count: "exact", head: true })
-        .eq("date", todayIST)
+        .eq("attendance_date", todayIST)
         .eq("status", "present"),
 
-      // On leave today
-      serviceClient
-        .from("attendance")
-        .select("id", { count: "exact", head: true })
-        .eq("date", todayIST)
-        .eq("status", "leave"),
-
-      // Currently working (active punch-in sessions today)
+      // Currently working (active punch-in sessions where punch_out is null)
       serviceClient
         .from("attendance_sessions")
         .select("id", { count: "exact", head: true })
-        .eq("date", todayIST)
         .is("punch_out", null),
 
-      // Sum of total_working_seconds for today
+      // All attendance for today to sum working seconds
       serviceClient
         .from("attendance")
         .select("total_working_seconds")
-        .eq("date", todayIST)
-        .eq("status", "present"),
-
-      // Pending leave requests
-      serviceClient
-        .from("leave_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending"),
-
-      // New employees this month
-      serviceClient
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "employee")
-        .eq("is_active", true)
-        .gte(
-          "created_at",
-          new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            1
-          ).toISOString()
-        ),
+        .eq("attendance_date", todayIST),
     ]);
 
     const totalEmployees = totalEmployeesResult.count ?? 0;
     const presentToday = presentTodayResult.count ?? 0;
-    const onLeave = onLeaveTodayResult.count ?? 0;
     const currentlyWorking = currentlyWorkingResult.count ?? 0;
-    const absentToday = Math.max(0, totalEmployees - presentToday - onLeave);
-    const pendingLeaveCount = pendingLeaveResult.count ?? 0;
-    const newEmployeesThisMonth = newEmployeesResult.count ?? 0;
+    const absentToday = Math.max(0, totalEmployees - presentToday);
 
-    // Sum working seconds from result rows
-    const totalWorkingSecondsToday = (
-      workingSecondsResult.data ?? []
-    ).reduce(
-      (sum: number, row: { total_working_seconds: number | null }) =>
-        sum + (row.total_working_seconds ?? 0),
+    const totalWorkingHoursToday = (attendanceRecordsToday.data ?? []).reduce(
+      (sum, r) => sum + (r.total_working_seconds ?? 0),
       0
     );
-
-    const totalWorkingHoursToday = +(totalWorkingSecondsToday / 3600).toFixed(2);
-
-    // Attendance rate (% of employees who punched in today)
-    const attendanceRate =
-      totalEmployees > 0
-        ? +((presentToday / totalEmployees) * 100).toFixed(1)
-        : 0;
 
     return NextResponse.json(
       {
@@ -182,21 +111,17 @@ export async function GET() {
           totalEmployees,
           presentToday,
           absentToday,
-          onLeave,
           currentlyWorking,
-          totalWorkingSecondsToday,
           totalWorkingHoursToday,
-          attendanceRate,
-          pendingLeaveRequests: pendingLeaveCount,
-          newEmployeesThisMonth,
         },
-        generatedAt: new Date().toISOString(),
-        dateIST: todayIST,
       },
       { status: 200 }
     );
-  } catch (err) {
-    console.error("[GET /admin/stats] unexpected error:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  } catch (err: any) {
+    console.error("[admin-stats] unexpected error:", err);
+    return NextResponse.json(
+      { error: err?.message || "Internal server error." },
+      { status: 500 }
+    );
   }
 }

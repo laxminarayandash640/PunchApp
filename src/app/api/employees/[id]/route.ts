@@ -120,11 +120,11 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     const { data: attendanceSummary, error: summaryError } =
       await serviceClient
         .from("attendance")
-        .select("date, status, total_working_seconds")
+        .select("attendance_date, status, total_working_seconds")
         .eq("employee_id", id)
-        .gte("date", startDate)
-        .lte("date", today)
-        .order("date", { ascending: false });
+        .gte("attendance_date", startDate)
+        .lte("attendance_date", today)
+        .order("attendance_date", { ascending: false });
 
     if (summaryError) {
       console.error("[GET /employees/[id]] summary error:", summaryError);
@@ -251,9 +251,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     await serviceClient.from("audit_logs").insert({
       actor_id: adminUser.id,
       action: "update_employee",
-      entity: "profiles",
-      entity_id: id,
-      metadata: { changes: updates },
+      target_table: "profiles",
+      target_id: id,
+      details: { changes: updates },
       created_at: updates.updated_at,
     });
 
@@ -332,9 +332,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     await serviceClient.from("audit_logs").insert({
       actor_id: adminUser.id,
       action: "deactivate_employee",
-      entity: "profiles",
-      entity_id: id,
-      metadata: { full_name: existing.full_name },
+      target_table: "profiles",
+      target_id: id,
+      details: { full_name: existing.full_name },
       created_at: nowUTC,
     });
 

@@ -2,10 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function getISTDateString(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -47,9 +43,7 @@ function createSupabaseServiceClient() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // GET /api/attendance/today
-// ---------------------------------------------------------------------------
 export async function GET() {
   try {
     // 1. Authenticate
@@ -69,23 +63,22 @@ export async function GET() {
     const serviceClient = createSupabaseServiceClient();
     const todayIST = getISTDateString();
 
-    // 2. Query attendance record for today
+    // 2. Query attendance record for today (attendance_date)
     const { data: attendance, error: attendanceError } = await serviceClient
       .from("attendance")
       .select("*")
       .eq("employee_id", user.id)
-      .eq("date", todayIST)
+      .eq("attendance_date", todayIST)
       .maybeSingle();
 
     if (attendanceError) {
       console.error("[today] fetch attendance error:", attendanceError);
       return NextResponse.json(
-        { error: "Failed to fetch attendance record." },
+        { error: `Failed to fetch attendance record: ${attendanceError.message}` },
         { status: 500 }
       );
     }
 
-    // 3. If no record for today, return early with null attendance
     if (!attendance) {
       return NextResponse.json(
         {
@@ -98,12 +91,11 @@ export async function GET() {
       );
     }
 
-    // 4. Query all sessions for today
+    // 3. Query all sessions for this attendance record
     const { data: sessions, error: sessionsError } = await serviceClient
       .from("attendance_sessions")
       .select("*")
-      .eq("employee_id", user.id)
-      .eq("date", todayIST)
+      .eq("attendance_id", attendance.id)
       .order("punch_in", { ascending: true });
 
     if (sessionsError) {
@@ -117,7 +109,6 @@ export async function GET() {
     const sessionList = sessions ?? [];
     const hasActiveSession = sessionList.some((s) => s.punch_out === null);
 
-    // 5. Compute live total: completed sessions + elapsed time of active session
     const completedSeconds = sessionList.reduce(
       (sum, s) => sum + (s.duration_seconds ?? 0),
       0
@@ -125,26 +116,27 @@ export async function GET() {
 
     const activeSession = sessionList.find((s) => s.punch_out === null);
     const liveElapsed = activeSession
-      ? Math.floor(
-          (Date.now() - new Date(activeSession.punch_in).getTime()) / 1000
-        )
+      ? Math.floor((Date.now() - new Date(activeSession.punch_in).getTime()) / 1000)
       : 0;
 
     const totalSeconds = completedSeconds + liveElapsed;
 
     return NextResponse.json(
       {
-        attendance,
+        attendance: {
+          ...attendance,
+          sessions: sessionList,
+        },
         sessions: sessionList,
         hasActiveSession,
         totalSeconds,
       },
       { status: 200 }
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error("[today] unexpected error:", err);
     return NextResponse.json(
-      { error: "Internal server error." },
+      { error: err?.message || "Internal server error." },
       { status: 500 }
     );
   }

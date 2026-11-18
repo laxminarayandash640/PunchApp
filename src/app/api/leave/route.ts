@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         profiles:employee_id (
           id,
           full_name,
-          employee_code,
+          employee_id,
           department,
           designation
         ),
@@ -292,9 +292,9 @@ export async function POST(request: NextRequest) {
     await serviceClient.from("audit_logs").insert({
       actor_id: user.id,
       action: "apply_leave",
-      entity: "leave_requests",
-      entity_id: leaveRequest.id,
-      metadata: { leave_type, start_date, end_date, total_days: totalDays },
+      target_table: "leave_requests",
+      target_id: leaveRequest.id,
+      details: { leave_type, start_date, end_date, total_days: totalDays },
       created_at: nowUTC,
     });
 
