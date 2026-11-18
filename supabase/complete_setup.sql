@@ -701,3 +701,20 @@ DO UPDATE SET status = 'holiday', updated_at = now();
 -- ---------------------------------------------------------------------------
 -- END OF SEED
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- 13. Schema Permissions
+-- ---------------------------------------------------------------------------
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
+-- Promote admin@punchapp.com to admin role
+UPDATE public.profiles
+SET role = 'admin', employee_id = 'ADMIN001'
+WHERE email = 'admin@punchapp.com';
